@@ -1,25 +1,23 @@
+# fly.toml app configuration file generated for app-crimson-night-1579 on 2026-03-13T16:29:13Z
+#
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "passages"
-primary_region = "sjc"
+app = 'app-crimson-night-1579'
+primary_region = 'iad'
 
 [build]
 
-[env]
-  DATABASE_URL = "sqlite:///data/passages.db"
-
 [http_service]
-  internal_port = 8000
+  internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-
-[mounts]
-  source = "passages_data"
-  destination = "/data"
+  processes = ['app']
 
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 256
