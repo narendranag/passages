@@ -34,7 +34,7 @@
       letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
-    textarea, input[type="text"] {
+    textarea, input[type="text"], input[type="email"], input[type="password"] {
       width: 100%;
       background: #1a1a2e;
       border: 1px solid #333;
@@ -45,7 +45,7 @@
       font-family: inherit;
       resize: vertical;
     }
-    textarea:focus, input[type="text"]:focus {
+    textarea:focus, input:focus {
       outline: none;
       border-color: #4a6fa5;
     }
@@ -65,12 +65,22 @@
     .btn:hover { background: #224a6c; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.success { background: #1b4332; border-color: #2d6a4f; color: #95d5b2; }
+    .btn-link {
+      background: none;
+      border: none;
+      color: #4a6fa5;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+    }
+    .btn-link:hover { color: #6a8fc5; }
     .status {
       text-align: center;
       font-size: 12px;
       margin-top: 8px;
       color: #888;
     }
+    .status.error { color: #e57373; }
     .recent {
       margin-top: 16px;
       padding-top: 12px;
@@ -96,13 +106,74 @@
       font-size: 11px;
       margin-top: 4px;
     }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .toggle-label {
+      font-size: 12px;
+      color: #aaa;
+    }
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.active { background: #4a6fa5; }
+    .toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle.active .toggle-knob { transform: translateX(16px); }
+    .user-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #222;
+    }
+    .user-name { font-size: 12px; color: #aaa; }
+    #login-view, #form-view { display: none; }
   </style>
 </head>
 <body>
   <h1>Passages</h1>
   <p class="subtitle">Save the best of what you read</p>
 
+  <!-- Login View -->
+  <div id="login-view">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Password">
+    </div>
+    <button class="btn" id="login-btn">Sign in</button>
+    <div class="status" id="login-status"></div>
+  </div>
+
+  <!-- Save Form View -->
   <div id="form-view">
+    <div class="user-bar">
+      <span class="user-name" id="user-name"></span>
+      <button class="btn-link" id="logout-btn">Sign out</button>
+    </div>
+
     <div class="form-group">
       <label>Selected text</label>
       <textarea id="selected-text" placeholder="Select text on the page, or paste here..."></textarea>
@@ -115,6 +186,14 @@
       <label>Tags (comma separated)</label>
       <input type="text" id="tags" placeholder="philosophy, writing, tech">
     </div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">Save privately</span>
+      <div class="toggle" id="private-toggle">
+        <div class="toggle-knob"></div>
+      </div>
+    </div>
+
     <button class="btn" id="save-btn">Save Passage</button>
     <div class="status" id="status"></div>
   </div>

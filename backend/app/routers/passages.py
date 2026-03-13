@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from typing import Optional
 
+from ..auth import get_current_user
 from ..database import get_session
 from ..models import (
     Passage,
@@ -15,18 +16,6 @@ from ..models import (
 from ..services.metadata import extract_metadata
 
 router = APIRouter(prefix="/passages", tags=["passages"])
-
-DEFAULT_USER_ID = "default"
-
-
-def _ensure_default_user(session: Session) -> User:
-    user = session.get(User, DEFAULT_USER_ID)
-    if not user:
-        user = User(id=DEFAULT_USER_ID, email="me@passages.local", name="Me")
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-    return user
 
 
 def _get_or_create_tags(session: Session, tag_names: list[str]) -> list[Tag]:
@@ -64,17 +53,23 @@ def _passage_to_read(passage: Passage) -> PassageRead:
 
 @router.post("", response_model=PassageRead, status_code=201)
 async def create_passage(
-    data: PassageCreate, session: Session = Depends(get_session)
+    data: PassageCreate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    _ensure_default_user(session)
-
     # Auto-fill metadata from URL if not provided
     meta = {}
     if not data.source_title or not data.author_name:
         meta = await extract_metadata(data.source_url)
 
+    # Determine visibility: explicit choice > user default > public
+    if data.is_public is not None:
+        is_public = data.is_public
+    else:
+        is_public = not user.default_private
+
     passage = Passage(
-        user_id=DEFAULT_USER_ID,
+        user_id=user.id,
         selected_text=data.selected_text,
         note=data.note,
         source_url=data.source_url,
@@ -82,7 +77,7 @@ async def create_passage(
         author_name=data.author_name or meta.get("author_name"),
         published_date=data.published_date,
         summary=data.summary,
-        is_public=data.is_public,
+        is_public=is_public,
     )
 
     if data.tags:
@@ -99,18 +94,24 @@ def list_passages(
     search: Optional[str] = Query(None, description="Search text and notes"),
     tag: Optional[str] = Query(None, description="Filter by tag name"),
     author: Optional[str] = Query(None, description="Filter by author"),
+    visibility: Optional[str] = Query(None, description="Filter: public, private, or all"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     stmt = (
         select(Passage)
-        .where(Passage.user_id == DEFAULT_USER_ID)
+        .where(Passage.user_id == user.id)
         .order_by(Passage.saved_at.desc())  # type: ignore[union-attr]
     )
 
+    if visibility == "public":
+        stmt = stmt.where(Passage.is_public == True)
+    elif visibility == "private":
+        stmt = stmt.where(Passage.is_public == False)
+
     if search:
-        pattern = f"%{search}%"
         stmt = stmt.where(
             Passage.selected_text.contains(search)  # type: ignore[union-attr]
             | Passage.note.contains(search)  # type: ignore[union-attr]
@@ -131,9 +132,13 @@ def list_passages(
 
 
 @router.get("/{passage_id}", response_model=PassageRead)
-def get_passage(passage_id: str, session: Session = Depends(get_session)):
+def get_passage(
+    passage_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
     passage = session.get(Passage, passage_id)
-    if not passage or passage.user_id != DEFAULT_USER_ID:
+    if not passage or passage.user_id != user.id:
         raise HTTPException(status_code=404, detail="Passage not found")
     return _passage_to_read(passage)
 
@@ -142,10 +147,11 @@ def get_passage(passage_id: str, session: Session = Depends(get_session)):
 def update_passage(
     passage_id: str,
     data: PassageUpdate,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     passage = session.get(Passage, passage_id)
-    if not passage or passage.user_id != DEFAULT_USER_ID:
+    if not passage or passage.user_id != user.id:
         raise HTTPException(status_code=404, detail="Passage not found")
 
     update_data = data.model_dump(exclude_unset=True)
@@ -164,9 +170,13 @@ def update_passage(
 
 
 @router.delete("/{passage_id}", status_code=204)
-def delete_passage(passage_id: str, session: Session = Depends(get_session)):
+def delete_passage(
+    passage_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
     passage = session.get(Passage, passage_id)
-    if not passage or passage.user_id != DEFAULT_USER_ID:
+    if not passage or passage.user_id != user.id:
         raise HTTPException(status_code=404, detail="Passage not found")
     session.delete(passage)
     session.commit()
