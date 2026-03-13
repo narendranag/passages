@@ -15,6 +15,8 @@ class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     email: str = Field(unique=True, index=True)
     name: str
+    password_hash: Optional[str] = None
+    default_private: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     passages: list["Passage"] = Relationship(back_populates="user")
 
@@ -39,7 +41,7 @@ class Passage(SQLModel, table=True):
     author_name: Optional[str] = None
     published_date: Optional[date] = None
     summary: Optional[str] = None
-    is_public: bool = Field(default=False)
+    is_public: bool = Field(default=True)
     saved_at: datetime = Field(default_factory=datetime.utcnow)
 
     user: Optional[User] = Relationship(back_populates="passages")
@@ -59,8 +61,8 @@ class PassageCreate(SQLModel):
     author_name: Optional[str] = None
     published_date: Optional[date] = None
     summary: Optional[str] = None
-    is_public: bool = False
-    tags: list[str] = []  # tag names
+    is_public: Optional[bool] = None  # None = use user's default setting
+    tags: list[str] = []
 
 
 class PassageUpdate(SQLModel):

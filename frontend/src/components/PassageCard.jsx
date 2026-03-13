@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { updatePassage } from "../api";
 
-export default function PassageCard({ passage, onDelete }) {
+export default function PassageCard({ passage, onDelete, showVisibility }) {
   const [confirming, setConfirming] = useState(false);
+  const [isPublic, setIsPublic] = useState(passage.is_public);
 
   const handleDelete = () => {
     if (!confirming) {
@@ -10,6 +12,16 @@ export default function PassageCard({ passage, onDelete }) {
       return;
     }
     onDelete(passage.id);
+  };
+
+  const toggleVisibility = async () => {
+    const newValue = !isPublic;
+    setIsPublic(newValue);
+    try {
+      await updatePassage(passage.id, { is_public: newValue });
+    } catch {
+      setIsPublic(!newValue);
+    }
   };
 
   return (
@@ -46,16 +58,30 @@ export default function PassageCard({ passage, onDelete }) {
           </span>
         </div>
 
-        <button
-          onClick={handleDelete}
-          className={`text-xs px-2 py-1 rounded transition-colors ${
-            confirming
-              ? "bg-red-900/30 text-red-400 border border-red-800"
-              : "text-gray-600 hover:text-gray-400"
-          }`}
-        >
-          {confirming ? "Confirm delete?" : "Delete"}
-        </button>
+        <div className="flex items-center gap-3">
+          {showVisibility && (
+            <button
+              onClick={toggleVisibility}
+              className={`text-xs px-2 py-1 rounded transition-colors ${
+                isPublic
+                  ? "text-green-400/70 bg-green-900/20 border border-green-900/30"
+                  : "text-gray-500 bg-surface-700 border border-gray-700"
+              }`}
+            >
+              {isPublic ? "Public" : "Private"}
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className={`text-xs px-2 py-1 rounded transition-colors ${
+              confirming
+                ? "bg-red-900/30 text-red-400 border border-red-800"
+                : "text-gray-600 hover:text-gray-400"
+            }`}
+          >
+            {confirming ? "Confirm delete?" : "Delete"}
+          </button>
+        </div>
       </div>
 
       {passage.tags.length > 0 && (
